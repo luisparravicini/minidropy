@@ -32,7 +32,7 @@ parser = argparse.ArgumentParser(description='Downloads a path in Dropbox to the
 parser.add_argument('rootdir', nargs='?',
                     help='Local directory')
 parser.add_argument('dropbox_path', nargs='?',
-                    help='Path in Dropbox')
+                    help='Path in Dropbox (can be an id)')
 parser.add_argument('--list', '-l', action='store_true',
                     help='List files in dropbox path')
 parser.add_argument('--token', default=TOKEN,
@@ -70,6 +70,7 @@ def main():
     elif not os.path.isdir(rootdir):
         print(rootdir, 'is not a folder on your filesystem')
         sys.exit(1)
+
     folder = args.dropbox_path
     print('Dropbox folder name:', folder)
 

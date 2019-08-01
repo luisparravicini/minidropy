@@ -1,6 +1,9 @@
 """Upload the contents of a folder to Dropbox.
 
 Based on the example app for API v2 @ https://github.com/dropbox/dropbox-sdk-python/blob/master/example/updown.py
+
+For py3
+
 @xrm0
 """
 
@@ -13,21 +16,25 @@ import os
 import six
 import sys
 import time
+import json
 import unicodedata
 
 if sys.version.startswith('2'):
-    input = raw_input  # noqa: E501,F821; pylint: disable=redefined-builtin,undefined-variable,useless-suppression
+    print("Needs python 3")
+    sys.exit(1)
 
 import dropbox
 
 # OAuth2 access token.  TODO: login etc.
 TOKEN = ''
 
-parser = argparse.ArgumentParser(description='Sync a folder with Dropbox')
-parser.add_argument('folder', nargs='?',
-                    help='Folder name in your Dropbox')
+parser = argparse.ArgumentParser(description='Downloads a path in Dropbox to the local file system')
 parser.add_argument('rootdir', nargs='?',
-                    help='Local directory to upload')
+                    help='Local directory')
+parser.add_argument('dropbox_path', nargs='?',
+                    help='Path in Dropbox')
+parser.add_argument('--list', '-l', action='store_true',
+                    help='List files in dropbox path')
 parser.add_argument('--token', default=TOKEN,
                     help='Access token '
                     '(see https://www.dropbox.com/developers/apps)')
@@ -54,18 +61,30 @@ def main():
         print('--token is mandatory')
         sys.exit(2)
 
-    folder = args.folder
     rootdir = os.path.expanduser(args.rootdir)
-    print('Dropbox folder name:', folder)
+    rootdir_data = os.path.join(rootdir, 'data')
     print('Local directory:', rootdir)
-    if not os.path.exists(rootdir):
-        print(rootdir, 'does not exist on your filesystem')
-        sys.exit(1)
+    if not os.path.exists(rootdir_data):
+        print(rootdir, 'does not exist, creating it')
+        os.mkdir(rootdir_data)
     elif not os.path.isdir(rootdir):
         print(rootdir, 'is not a folder on your filesystem')
         sys.exit(1)
+    folder = args.dropbox_path
+    print('Dropbox folder name:', folder)
 
+    metadata = read_local_metadata(rootdir)
+    print(metadata)
     dbx = dropbox.Dropbox(args.token)
+
+    #files_download_to_file(download_path, path, rev=None)
+    if args.list:
+        print('Listing files in', folder)
+        res = dbx.files_list_folder(folder)
+        for entry in res.entries:
+          print(entry.id, entry.path_display)
+        print()
+        return
 
     for dn, dirs, files in os.walk(rootdir):
         subfolder = dn[len(rootdir):].strip(os.path.sep)
@@ -80,26 +99,29 @@ def main():
             nname = unicodedata.normalize('NFC', name)
             if name.startswith('.'):
                 print('Skipping dot file:', name)
-            elif nname in listing:
-                md = listing[nname]
-                mtime = os.path.getmtime(fullname)
-                mtime_dt = datetime.datetime(*time.gmtime(mtime)[:6])
-                size = os.path.getsize(fullname)
-                if (isinstance(md, dropbox.files.FileMetadata) and
-                        mtime_dt == md.client_modified and size == md.size):
-                    print(name, 'is already synced [stats match]')
-                else:
-                    print(name, 'exists with different stats, downloading')
-                    res = download(dbx, folder, subfolder, name)
-                    with open(fullname) as f:
-                        data = f.read()
-                    if res == data:
-                        print(name, 'is already synced [content match]')
-                    else:
-                        print(name, 'has changed since last sync')
-                        if yesno('Refresh %s' % name, False, args):
-                            upload(dbx, fullname, folder, subfolder, name,
-                                   overwrite=True)
+                continue
+
+            if nname in listing:
+              md = listing[nname]
+              mtime = os.path.getmtime(fullname)
+              mtime_dt = datetime.datetime(*time.gmtime(mtime)[:6])
+              size = os.path.getsize(fullname)
+              if (isinstance(md, dropbox.files.FileMetadata) and
+                      mtime_dt == md.client_modified and size == md.size):
+                  print(name, 'is already synced [stats match]')
+              else:
+                  print(name, 'exists with different stats, downloading')
+                  res = download(dbx, folder, subfolder, name)
+                  print(res)
+                  with open(fullname) as f:
+                      data = f.read()
+                  if res == data:
+                      print(name, 'is already synced [content match]')
+                  else:
+                      print(name, 'has changed since last sync')
+                      if yesno('Refresh %s' % name, False, args):
+                          upload(dbx, fullname, folder, subfolder, name,
+                                 overwrite=True)
             elif yesno('Upload %s' % name, True, args):
                 upload(dbx, fullname, folder, subfolder, name)
 
@@ -114,6 +136,18 @@ def main():
             else:
                 print('OK, skipping directory:', name)
         dirs[:] = keep
+
+def read_local_metadata(path):
+    metadata_path = os.path.join(path, 'metadata.json')
+    if not os.path.isfile(metadata_path):
+        return {}
+
+    with open(metadata_path, 'r') as stream:
+        try:
+            return json.load(stream)
+        except yaml.YAMLError as exc:
+            print(exc)
+            return {}
 
 def list_folder(dbx, folder, subfolder):
     """List a folder.

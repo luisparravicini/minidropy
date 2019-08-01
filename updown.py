@@ -79,10 +79,6 @@ def main():
             nname = unicodedata.normalize('NFC', name)
             if name.startswith('.'):
                 print('Skipping dot file:', name)
-            elif name.startswith('@') or name.endswith('~'):
-                print('Skipping temporary file:', name)
-            elif name.endswith('.pyc') or name.endswith('.pyo'):
-                print('Skipping generated file:', name)
             elif nname in listing:
                 md = listing[nname]
                 mtime = os.path.getmtime(fullname)
@@ -111,10 +107,6 @@ def main():
         for name in dirs:
             if name.startswith('.'):
                 print('Skipping dot directory:', name)
-            elif name.startswith('@') or name.endswith('~'):
-                print('Skipping temporary directory:', name)
-            elif name == '__pycache__':
-                print('Skipping generated directory:', name)
             elif yesno('Descend into %s' % name, True, args):
                 print('Keeping directory:', name)
                 keep.append(name)

@@ -1,6 +1,7 @@
-"""Upload the contents of your Downloads folder to Dropbox.
+"""Upload the contents of a folder to Dropbox.
 
-This is an example app for API v2.
+Based on the example app for API v2 @ https://github.com/dropbox/dropbox-sdk-python/blob/master/example/updown.py
+@xrm0
 """
 
 from __future__ import print_function
@@ -22,10 +23,10 @@ import dropbox
 # OAuth2 access token.  TODO: login etc.
 TOKEN = ''
 
-parser = argparse.ArgumentParser(description='Sync ~/Downloads to Dropbox')
-parser.add_argument('folder', nargs='?', default='Downloads',
+parser = argparse.ArgumentParser(description='Sync a folder with Dropbox')
+parser.add_argument('folder', nargs='?',
                     help='Folder name in your Dropbox')
-parser.add_argument('rootdir', nargs='?', default='~/Downloads',
+parser.add_argument('rootdir', nargs='?',
                     help='Local directory to upload')
 parser.add_argument('--token', default=TOKEN,
                     help='Access token '

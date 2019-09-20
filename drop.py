@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """Upload the contents of a folder to Dropbox.
 
 Based on the example app for API v2 @ https://github.com/dropbox/dropbox-sdk-python/blob/master/example/updown.py

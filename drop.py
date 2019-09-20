@@ -33,6 +33,10 @@ parser.add_argument('rootdir', nargs='?',
                     help='Local directory')
 parser.add_argument('dropbox_path', nargs='?',
                     help='Path in Dropbox (can be an id)')
+parser.add_argument('--download', '-d', action='store_true',
+                    help='Download files')
+parser.add_argument('--upload', '-u', action='store_true',
+                    help='Upload files')
 parser.add_argument('--list', '-l', action='store_true',
                     help='List files in dropbox path')
 parser.add_argument('--token', default=TOKEN,
@@ -42,7 +46,7 @@ parser.add_argument('--yes', '-y', action='store_true',
                     help='Answer yes to all questions')
 parser.add_argument('--no', '-n', action='store_true',
                     help='Answer no to all questions')
-parser.add_argument('--default', '-d', action='store_true',
+parser.add_argument('--default', '-D', action='store_true',
                     help='Take default answer on all questions')
 
 def main():
@@ -60,6 +64,9 @@ def main():
     if not args.token:
         print('--token is mandatory')
         sys.exit(2)
+    if not args.list and sum([bool(b) for b in (args.download, args.upload)]) != 1:
+        print('Needs to specify --download or --upload')
+        sys.exit(2)
 
     rootdir = os.path.expanduser(args.rootdir)
     rootdir_data = os.path.join(rootdir, 'data')
@@ -71,21 +78,37 @@ def main():
         print(rootdir, 'is not a folder on your filesystem')
         sys.exit(1)
 
-    folder = args.dropbox_path
-    print('Dropbox folder name:', folder)
+    dropbox_path = args.dropbox_path
 
-    metadata = read_local_metadata(rootdir)
-    print(metadata)
     dbx = dropbox.Dropbox(args.token)
 
-    #files_download_to_file(download_path, path, rev=None)
     if args.list:
-        print('Listing files in', folder)
-        res = dbx.files_list_folder(folder)
+        print('Listing files in', dropbox_path)
+        res = dbx.files_list_folder(dropbox_path)
         for entry in res.entries:
           print(entry.id, entry.path_display)
         print()
         return
+
+    metadata = read_local_metadata(rootdir)
+    print(metadata)
+
+    if args.download:
+        remote_meta = dbx.files_metadata(dropbox_path)
+        print(remote_meta)
+        needs_download = True
+        if dropbox_path in metadata:
+            print(metadata[dropbox_path])
+
+        print('downloading', dropbox_path)
+        download_path = os.path.join(rootdir_data, dropbox_path)
+        res = dbx.files_download_to_file(download_path, dropbox_path)
+        print(res)
+
+    return
+
+
+
 
     for dn, dirs, files in os.walk(rootdir):
         subfolder = dn[len(rootdir):].strip(os.path.sep)

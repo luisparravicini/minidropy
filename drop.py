@@ -2,7 +2,8 @@
 
 """Upload the contents of a folder to Dropbox.
 
-Based on the example app for API v2 @ https://github.com/dropbox/dropbox-sdk-python/blob/master/example/updown.py
+Based on the example app for API v2
+@ https://github.com/dropbox/dropbox-sdk-python/blob/master/example/updown.py
 
 For py3
 
@@ -20,11 +21,6 @@ import sys
 import time
 import json
 import unicodedata
-
-if sys.version.startswith('2'):
-    print("Needs python 3")
-    sys.exit(1)
-
 import dropbox
 
 # OAuth2 access token.  TODO: login etc.
@@ -50,6 +46,7 @@ parser.add_argument('--no', '-n', action='store_true',
                     help='Answer no to all questions')
 parser.add_argument('--default', '-D', action='store_true',
                     help='Take default answer on all questions')
+
 
 def main():
     """Main program.
@@ -88,7 +85,7 @@ def main():
         print('Listing files in', dropbox_path)
         res = dbx.files_list_folder(dropbox_path)
         for entry in res.entries:
-          print(entry.id, entry.path_display)
+            print(entry.id, entry.path_display)
         print()
         return
 

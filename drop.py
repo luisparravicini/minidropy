@@ -40,7 +40,7 @@ parser.add_argument('rootdir', nargs='?',
 parser.add_argument('dropbox_path', nargs='?',
                     help='Path in Dropbox (can be an id)')
 parser.add_argument('--download', '-d', action='store_true',
-                    help='Download files')
+                    help='Download file (specify file id)')
 parser.add_argument('--upload', '-u', action='store_true',
                     help='Upload files')
 parser.add_argument('--list', '-l', action='store_true',
@@ -97,25 +97,29 @@ def main():
         if args.verbose:
             print('Listing files in', dropbox_path)
         res = dbx.files_list_folder(dropbox_path, recursive=args.recursive)
-        items = list(map(lambda x: (x.id, x.path_display), res.entries))
-        print(json.dumps(items))
+        for entry in res.entries:
+            print(f'{entry.id}\t{entry.path_display}')
         return
 
     if args.download:
+        if not isId(dropbox_path):
+            print(f'"{dropbox_path}" is not a Dropbox file id')
+            os.sys.exit(1)
+
         if args.verbose:
-            print('Fetching metadata from', dropbox_path)
-
+            print('Fetching metadata')
         remote_meta = dbx.files_get_metadata(dropbox_path)
+        metadata = {
+            'id': remote_meta.id,
+            'path': remote_meta.path_lower
+        }
 
-        ext = ''.join(Path(remote_meta.path_lower).suffixes)
-        download_path = os.path.join(rootdir, 'data' + ext)
+        download_path = os.path.join(rootdir, 'data')
         if args.verbose:
             print('Downloading', dropbox_path, 'to', download_path)
         dbx.files_download_to_file(download_path, dropbox_path)
 
-        metadata_path = os.path.join(rootdir, 'metadata.txt')
-        with open(metadata_path, 'w') as file:
-            file.write(remote_meta.id)
+        save_metadata(rootdir, metadata)
 
         return
 
@@ -189,6 +193,11 @@ def main():
                 print('OK, skipping directory:', name)
         dirs[:] = keep
 
+
+def save_metadata(path, metadata):
+    metadata_path = os.path.join(path, 'metadata.json')
+    with open(metadata_path, 'w') as file:
+        file.write(json.dumps(metadata))
 
 def list_folder(dbx, folder, subfolder):
     """List a folder.
@@ -299,6 +308,9 @@ def yesno(message, default, args):
             import pdb
             pdb.set_trace()
         print('Please answer YES or NO.')
+
+def isId(s):
+    return s.startswith('id:')
 
 @contextlib.contextmanager
 def stopwatch(message):

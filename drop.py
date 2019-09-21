@@ -20,14 +20,9 @@ import json
 import dropbox
 
 
-TOKEN = ''
-
 METADATA_FNAME = 'metadata.json'
 token_path = 'token.txt'
 
-if os.path.exists(token_path):
-    with open(token_path) as file:
-        TOKEN = file.read()
 
 parser = argparse.ArgumentParser(description='Downloads a path in Dropbox to the local file system')
 parser.add_argument('rootdir', nargs='?',
@@ -37,13 +32,14 @@ parser.add_argument('dropbox_path', nargs='?',
 parser.add_argument('--download', '-d', action='store_true',
                     help='Download file (specify file id)')
 parser.add_argument('--upload', '-u', action='store_true',
-                    help='Upload file specifying the path where resides the file and the metadata')
+                    help='Upload file specifying '
+                    'the path where resides the file and the metadata')
 parser.add_argument('--list', '-l', action='store_true',
                     help='List files in dropbox path')
 parser.add_argument('--recursive', '-r', action='store_true',
                     help='When listing files, do it recursively')
-parser.add_argument('--token', default=TOKEN,
-                    help='Access token '
+parser.add_argument('--token_path',
+                    help='Path where the access token is stored '
                     '(see https://www.dropbox.com/developers/apps)')
 parser.add_argument('--verbose', '-v', action='store_true',
                     help='Be verbose')
@@ -51,9 +47,16 @@ parser.add_argument('--verbose', '-v', action='store_true',
 
 def main():
     args = parser.parse_args()
-    if not args.token:
+
+    if not args.token_path:
         print('--token is mandatory')
         sys.exit(2)
+    if not os.path.exists(args.token_path):
+        print('Token path doesn\'t exist')
+        sys.exit(2)
+    with open(token_path) as file:
+        token = file.read()
+
     if not args.list and sum([bool(b) for b in (args.download, args.upload)]) != 1:
         print('Needs to specify --download or --upload')
         sys.exit(2)
@@ -70,7 +73,7 @@ def main():
 
     dropbox_path = args.dropbox_path
 
-    dbx = dropbox.Dropbox(args.token)
+    dbx = dropbox.Dropbox(token)
 
     if args.list:
         list_folder(args, dbx, dropbox_path)

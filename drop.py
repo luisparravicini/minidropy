@@ -104,8 +104,9 @@ def upload_file(args, dbx, dropbox_path, rootdir):
         client_modified=mtime,
     )
 
+
 def download_file(args, dbx, dropbox_path, rootdir):
-    if not isId(dropbox_path):
+    if not is_id(dropbox_path):
         print(f'"{dropbox_path}" is not a Dropbox file id')
         os.sys.exit(1)
 
@@ -148,7 +149,7 @@ def load_metadata(path):
         return json.load(file)
 
 
-def isId(s):
+def is_id(s):
     return s.startswith('id:')
 
 

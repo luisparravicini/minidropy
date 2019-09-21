@@ -137,73 +137,19 @@ def main():
         if args.verbose:
             print('Uploading', local_path, 'to', dropbox_path)
 
+        mtime = os.path.getmtime(fullname)
+        mtime = datetime.datetime(*time.gmtime(mtime)[:6])
         with open(local_path, 'rb') as file:
             data = file.read()
 
         dbx.files_upload(
             data,
             file_id,
-            mode=dropbox.files.WriteMode.update(metadata['rev'])
+            mode=dropbox.files.WriteMode.update(metadata['rev']),
+            client_modified=mtime,
         )
 
         return
-
-
-
-
-    return 
-
-    for dn, dirs, files in os.walk(rootdir):
-        subfolder = dn[len(rootdir):].strip(os.path.sep)
-        listing = list_folder(dbx, folder, subfolder)
-        if args.verbose:
-            print('Descending into', subfolder, '...')
-
-        # First do all the files.
-        for name in files:
-            fullname = os.path.join(dn, name)
-            if not isinstance(name, six.text_type):
-                name = name.decode('utf-8')
-            nname = unicodedata.normalize('NFC', name)
-            if name.startswith('.'):
-                print('Skipping dot file:', name)
-                continue
-
-            if nname in listing:
-              md = listing[nname]
-              mtime = os.path.getmtime(fullname)
-              mtime_dt = datetime.datetime(*time.gmtime(mtime)[:6])
-              size = os.path.getsize(fullname)
-              if (isinstance(md, dropbox.files.FileMetadata) and
-                      mtime_dt == md.client_modified and size == md.size):
-                  print(name, 'is already synced [stats match]')
-              else:
-                  print(name, 'exists with different stats, downloading')
-                  res = download(dbx, folder, subfolder, name)
-                  print(res)
-                  with open(fullname) as f:
-                      data = f.read()
-                  if res == data:
-                      print(name, 'is already synced [content match]')
-                  else:
-                      print(name, 'has changed since last sync')
-                      if yesno('Refresh %s' % name, False, args):
-                          upload(dbx, fullname, folder, subfolder, name,
-                                 overwrite=True)
-            elif yesno('Upload %s' % name, True, args):
-                upload(dbx, fullname, folder, subfolder, name)
-
-        # Then choose which subdirectories to traverse.
-        keep = []
-        for name in dirs:
-            if name.startswith('.'):
-                print('Skipping dot directory:', name)
-            elif yesno('Descend into %s' % name, True, args):
-                print('Keeping directory:', name)
-                keep.append(name)
-            else:
-                print('OK, skipping directory:', name)
-        dirs[:] = keep
 
 
 METADATA_FNAME = 'metadata.json'

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-"""Upload the contents of a folder to Dropbox.
+"""Download / upload the contents of a file and list files in a folder.
 
 Based on the example app for API v2
 @ https://github.com/dropbox/dropbox-sdk-python/blob/master/example/updown.py
@@ -9,7 +9,6 @@ For python3
 
 api docs: https://dropbox-sdk-python.readthedocs.io/en/latest/api/dropbox.html
 
-@xrm0
 """
 
 import argparse
@@ -21,9 +20,10 @@ import json
 import unicodedata
 import dropbox
 
-# OAuth2 access token.  TODO: login etc.
+
 TOKEN = ''
 
+METADATA_FNAME = 'metadata.json'
 token_path = 'token.txt'
 
 if os.path.exists(token_path):
@@ -74,65 +74,67 @@ def main():
     dbx = dropbox.Dropbox(args.token)
 
     if args.list:
-        if args.verbose:
-            print('Listing files in', dropbox_path)
-        res = dbx.files_list_folder(dropbox_path, recursive=args.recursive)
-        for entry in res.entries:
-            print(f'{entry.id}\t{entry.path_display}')
-        return
-
-    if args.download:
-        if not isId(dropbox_path):
-            print(f'"{dropbox_path}" is not a Dropbox file id')
-            os.sys.exit(1)
-
-        if args.verbose:
-            print('Fetching metadata')
-        remote_meta = dbx.files_get_metadata(dropbox_path)
-        metadata = {
-            'id': remote_meta.id,
-            'path': remote_meta.path_lower,
-            'rev': remote_meta.rev,
-            'content_hash': remote_meta.content_hash,
-        }
-
-        download_path = os.path.join(rootdir, 'data')
-        if args.verbose:
-            print('Downloading', dropbox_path, 'to', download_path)
-        dbx.files_download_to_file(download_path, dropbox_path)
-
-        save_metadata(rootdir, metadata)
-
-        return
-
-    if args.upload:
-        metadata = load_metadata(dropbox_path)
-
-        file_id = metadata['id']
-        if args.verbose:
-            print('Fetching metadata')
-        remote_meta = dbx.files_get_metadata(file_id)
-
-        local_path = os.path.join(rootdir, 'data')
-        if args.verbose:
-            print('Uploading', local_path, 'to', dropbox_path)
-
-        mtime = os.path.getmtime(local_path)
-        mtime = datetime.datetime(*time.gmtime(mtime)[:6])
-        with open(local_path, 'rb') as file:
-            data = file.read()
-
-        dbx.files_upload(
-            data,
-            file_id,
-            mode=dropbox.files.WriteMode.update(metadata['rev']),
-            client_modified=mtime,
-        )
-
-        return
+        list_folder(args, dbx, dropbox_path)
+    elif args.download:
+        download_file(args, dbx, dropbox_path, rootdir)
+    elif args.upload:
+        upload_file(args, dbx, dropbox_path, rootdir)
 
 
-METADATA_FNAME = 'metadata.json'
+def upload_file(args, dbx, dropbox_path, rootdir):
+    metadata = load_metadata(dropbox_path)
+
+    file_id = metadata['id']
+    if args.verbose:
+        print('Fetching metadata')
+    remote_meta = dbx.files_get_metadata(file_id)
+
+    local_path = os.path.join(rootdir, 'data')
+    if args.verbose:
+        print('Uploading', local_path, 'to', dropbox_path)
+
+    mtime = os.path.getmtime(local_path)
+    mtime = datetime.datetime(*time.gmtime(mtime)[:6])
+    with open(local_path, 'rb') as file:
+        data = file.read()
+
+    dbx.files_upload(
+        data,
+        file_id,
+        mode=dropbox.files.WriteMode.update(metadata['rev']),
+        client_modified=mtime,
+    )
+
+def download_file(args, dbx, dropbox_path, rootdir):
+    if not isId(dropbox_path):
+        print(f'"{dropbox_path}" is not a Dropbox file id')
+        os.sys.exit(1)
+
+    if args.verbose:
+        print('Fetching metadata')
+    remote_meta = dbx.files_get_metadata(dropbox_path)
+    metadata = {
+        'id': remote_meta.id,
+        'path': remote_meta.path_lower,
+        'rev': remote_meta.rev,
+        'content_hash': remote_meta.content_hash,
+    }
+
+    download_path = os.path.join(rootdir, 'data')
+    if args.verbose:
+        print('Downloading', dropbox_path, 'to', download_path)
+    dbx.files_download_to_file(download_path, dropbox_path)
+
+    save_metadata(rootdir, metadata)
+
+
+def list_folder(args, dbx, dropbox_path):
+    if args.verbose:
+        print('Listing files in', dropbox_path)
+    res = dbx.files_list_folder(dropbox_path, recursive=args.recursive)
+    for entry in res.entries:
+        print(f'{entry.id}\t{entry.path_display}')
+    return
 
 
 def save_metadata(path, metadata):

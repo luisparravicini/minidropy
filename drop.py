@@ -21,8 +21,6 @@ import dropbox
 
 
 METADATA_FNAME = 'metadata.json'
-token_path = 'token.txt'
-
 
 parser = argparse.ArgumentParser(description='Downloads a path in Dropbox to the local file system')
 parser.add_argument('rootdir', nargs='?',
@@ -85,7 +83,7 @@ def setup_token(args):
     if not os.path.exists(args.token_path):
         print('Token path doesn\'t exist')
         sys.exit(2)
-    with open(token_path) as file:
+    with open(args.token_path) as file:
         return file.read()
 
 

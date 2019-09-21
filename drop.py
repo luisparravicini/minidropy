@@ -47,30 +47,14 @@ parser.add_argument('--verbose', '-v', action='store_true',
 
 def main():
     args = parser.parse_args()
+    token = setup_token(args)
 
-    if not args.token_path:
-        print('--token is mandatory')
-        sys.exit(2)
-    if not os.path.exists(args.token_path):
-        print('Token path doesn\'t exist')
-        sys.exit(2)
-    with open(token_path) as file:
-        token = file.read()
-
-    if not args.list and sum([bool(b) for b in (args.download, args.upload)]) != 1:
-        print('Needs to specify --download or --upload')
+    if not args.list and not args.download and not args.upload:
+        print('Needs to specify one action (list/download/upload)')
         sys.exit(2)
 
     rootdir = os.path.expanduser(args.rootdir)
-    if args.verbose:
-        print('Local directory:', rootdir)
-    if not os.path.exists(rootdir):
-        print(rootdir, 'does not exist, creating it')
-        os.mkdir(rootdir)
-    elif not os.path.isdir(rootdir):
-        print(rootdir, 'is not a folder on your filesystem')
-        sys.exit(1)
-
+    setup_rootdir(args, rootdir)
     dropbox_path = args.dropbox_path
 
     dbx = dropbox.Dropbox(token)
@@ -81,6 +65,28 @@ def main():
         download_file(args, dbx, dropbox_path, rootdir)
     elif args.upload:
         upload_file(args, dbx, dropbox_path, rootdir)
+
+
+def setup_rootdir(args, rootdir):
+    if args.verbose:
+        print('Local directory:', rootdir)
+    if not os.path.exists(rootdir):
+        print(rootdir, 'does not exist, creating it')
+        os.mkdir(rootdir)
+    elif not os.path.isdir(rootdir):
+        print(rootdir, 'is not a folder on your filesystem')
+        sys.exit(1)
+
+
+def setup_token(args):
+    if not args.token_path:
+        print('--token is mandatory')
+        sys.exit(2)
+    if not os.path.exists(args.token_path):
+        print('Token path doesn\'t exist')
+        sys.exit(2)
+    with open(token_path) as file:
+        return file.read()
 
 
 def upload_file(args, dbx, dropbox_path, rootdir):

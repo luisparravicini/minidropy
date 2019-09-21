@@ -42,7 +42,7 @@ parser.add_argument('dropbox_path', nargs='?',
 parser.add_argument('--download', '-d', action='store_true',
                     help='Download file (specify file id)')
 parser.add_argument('--upload', '-u', action='store_true',
-                    help='Upload files')
+                    help='Upload file specifying the path where resides the file and the metadata')
 parser.add_argument('--list', '-l', action='store_true',
                     help='List files in dropbox path')
 parser.add_argument('--recursive', '-r', action='store_true',
@@ -111,7 +111,9 @@ def main():
         remote_meta = dbx.files_get_metadata(dropbox_path)
         metadata = {
             'id': remote_meta.id,
-            'path': remote_meta.path_lower
+            'path': remote_meta.path_lower,
+            'rev': remote_meta.rev,
+            'content_hash': remote_meta.content_hash,
         }
 
         download_path = os.path.join(rootdir, 'data')
@@ -124,16 +126,26 @@ def main():
         return
 
     if args.upload:
-        if args.verbose:
-            print('Fetching metadata from', dropbox_path)
+        metadata = load_metadata(dropbox_path)
 
-        remote_meta = dbx.files_get_metadata(dropbox_path)
-        fname = remote_meta.id
-
-        download_path = os.path.join(rootdir, fname)
+        file_id = metadata['id']
         if args.verbose:
-            print('Downloading', dropbox_path, 'to', download_path)
-        dbx.files_download_to_file(download_path, dropbox_path)
+            print('Fetching metadata')
+        remote_meta = dbx.files_get_metadata(file_id)
+
+        local_path = os.path.join(rootdir, 'data')
+        if args.verbose:
+            print('Uploading', local_path, 'to', dropbox_path)
+
+        with open(local_path, 'rb') as file:
+            data = file.read()
+
+        dbx.files_upload(
+            data,
+            file_id,
+            mode=dropbox.files.WriteMode.update(metadata['rev'])
+        )
+
         return
 
 
@@ -194,10 +206,19 @@ def main():
         dirs[:] = keep
 
 
+METADATA_FNAME = 'metadata.json'
+
+
 def save_metadata(path, metadata):
-    metadata_path = os.path.join(path, 'metadata.json')
+    metadata_path = os.path.join(path, METADATA_FNAME)
     with open(metadata_path, 'w') as file:
-        file.write(json.dumps(metadata))
+        json.dump(metadata, file)
+
+
+def load_metadata(path):
+    metadata_path = os.path.join(path, METADATA_FNAME)
+    with open(metadata_path) as file:
+        return json.load(file)
 
 def list_folder(dbx, folder, subfolder):
     """List a folder.

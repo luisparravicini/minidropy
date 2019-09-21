@@ -5,7 +5,9 @@
 Based on the example app for API v2
 @ https://github.com/dropbox/dropbox-sdk-python/blob/master/example/updown.py
 
-For py3
+For python3
+
+api docs: https://dropbox-sdk-python.readthedocs.io/en/latest/api/dropbox.html
 
 @xrm0
 """
@@ -26,6 +28,12 @@ import dropbox
 # OAuth2 access token.  TODO: login etc.
 TOKEN = ''
 
+token_path = 'token.txt'
+
+if os.path.exists(token_path):
+    with open(token_path) as file:
+        TOKEN = file.read()
+
 parser = argparse.ArgumentParser(description='Downloads a path in Dropbox to the local file system')
 parser.add_argument('rootdir', nargs='?',
                     help='Local directory')
@@ -37,6 +45,8 @@ parser.add_argument('--upload', '-u', action='store_true',
                     help='Upload files')
 parser.add_argument('--list', '-l', action='store_true',
                     help='List files in dropbox path')
+parser.add_argument('--recursive', '-r', action='store_true',
+                    help='When listing files, do it recursively')
 parser.add_argument('--token', default=TOKEN,
                     help='Access token '
                     '(see https://www.dropbox.com/developers/apps)')
@@ -46,6 +56,8 @@ parser.add_argument('--no', '-n', action='store_true',
                     help='Answer no to all questions')
 parser.add_argument('--default', '-D', action='store_true',
                     help='Take default answer on all questions')
+parser.add_argument('--verbose', '-v', action='store_true',
+                    help='Be verbose')
 
 
 def main():
@@ -69,7 +81,8 @@ def main():
 
     rootdir = os.path.expanduser(args.rootdir)
     rootdir_data = os.path.join(rootdir, 'data')
-    print('Local directory:', rootdir)
+    if args.verbose:
+        print('Local directory:', rootdir)
     if not os.path.exists(rootdir_data):
         print(rootdir, 'does not exist, creating it')
         os.mkdir(rootdir_data)
@@ -82,37 +95,42 @@ def main():
     dbx = dropbox.Dropbox(args.token)
 
     if args.list:
-        print('Listing files in', dropbox_path)
-        res = dbx.files_list_folder(dropbox_path)
-        for entry in res.entries:
-            print(entry.id, entry.path_display)
-        print()
+        if args.verbose:
+            print('Listing files in', dropbox_path)
+        res = dbx.files_list_folder(dropbox_path, recursive=args.recursive)
+        items = list(map(lambda x: (x.id, x.path_display), res.entries))
+        print(json.dumps(items))
         return
 
     metadata = read_local_metadata(rootdir)
-    print(metadata)
+    if args.verbose:
+        print('Local metadata', metadata)
 
     if args.download:
-        remote_meta = dbx.files_metadata(dropbox_path)
+        if args.verbose:
+            print('Fetching metadata from', dropbox_path)
+        remote_meta = dbx.files_get_metadata(dropbox_path)
         print(remote_meta)
         needs_download = True
         if dropbox_path in metadata:
             print(metadata[dropbox_path])
 
-        print('downloading', dropbox_path)
         download_path = os.path.join(rootdir_data, dropbox_path)
+        if args.verbose:
+            print('Downloading', dropbox_path, 'to', download_path)
         res = dbx.files_download_to_file(download_path, dropbox_path)
         print(res)
 
-    return
 
 
 
+    return 
 
     for dn, dirs, files in os.walk(rootdir):
         subfolder = dn[len(rootdir):].strip(os.path.sep)
         listing = list_folder(dbx, folder, subfolder)
-        print('Descending into', subfolder, '...')
+        if args.verbose:
+            print('Descending into', subfolder, '...')
 
         # First do all the files.
         for name in files:

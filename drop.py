@@ -18,12 +18,12 @@ import argparse
 import contextlib
 import datetime
 import os
-import six
 import sys
 import time
 import json
 import unicodedata
 import dropbox
+from pathlib import Path
 
 # OAuth2 access token.  TODO: login etc.
 TOKEN = ''
@@ -80,12 +80,11 @@ def main():
         sys.exit(2)
 
     rootdir = os.path.expanduser(args.rootdir)
-    rootdir_data = os.path.join(rootdir, 'data')
     if args.verbose:
         print('Local directory:', rootdir)
-    if not os.path.exists(rootdir_data):
+    if not os.path.exists(rootdir):
         print(rootdir, 'does not exist, creating it')
-        os.mkdir(rootdir_data)
+        os.mkdir(rootdir)
     elif not os.path.isdir(rootdir):
         print(rootdir, 'is not a folder on your filesystem')
         sys.exit(1)
@@ -102,24 +101,36 @@ def main():
         print(json.dumps(items))
         return
 
-    metadata = read_local_metadata(rootdir)
-    if args.verbose:
-        print('Local metadata', metadata)
-
     if args.download:
         if args.verbose:
             print('Fetching metadata from', dropbox_path)
-        remote_meta = dbx.files_get_metadata(dropbox_path)
-        print(remote_meta)
-        needs_download = True
-        if dropbox_path in metadata:
-            print(metadata[dropbox_path])
 
-        download_path = os.path.join(rootdir_data, dropbox_path)
+        remote_meta = dbx.files_get_metadata(dropbox_path)
+
+        ext = ''.join(Path(remote_meta.path_lower).suffixes)
+        download_path = os.path.join(rootdir, 'data' + ext)
         if args.verbose:
             print('Downloading', dropbox_path, 'to', download_path)
-        res = dbx.files_download_to_file(download_path, dropbox_path)
-        print(res)
+        dbx.files_download_to_file(download_path, dropbox_path)
+
+        metadata_path = os.path.join(rootdir, 'metadata.txt')
+        with open(metadata_path, 'w') as file:
+            file.write(remote_meta.id)
+
+        return
+
+    if args.upload:
+        if args.verbose:
+            print('Fetching metadata from', dropbox_path)
+
+        remote_meta = dbx.files_get_metadata(dropbox_path)
+        fname = remote_meta.id
+
+        download_path = os.path.join(rootdir, fname)
+        if args.verbose:
+            print('Downloading', dropbox_path, 'to', download_path)
+        dbx.files_download_to_file(download_path, dropbox_path)
+        return
 
 
 
@@ -178,17 +189,6 @@ def main():
                 print('OK, skipping directory:', name)
         dirs[:] = keep
 
-def read_local_metadata(path):
-    metadata_path = os.path.join(path, 'metadata.json')
-    if not os.path.isfile(metadata_path):
-        return {}
-
-    with open(metadata_path, 'r') as stream:
-        try:
-            return json.load(stream)
-        except yaml.YAMLError as exc:
-            print(exc)
-            return {}
 
 def list_folder(dbx, folder, subfolder):
     """List a folder.

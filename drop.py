@@ -14,13 +14,13 @@ api docs: https://dropbox-sdk-python.readthedocs.io/en/latest/api/dropbox.html
 import argparse
 import datetime
 import os
-import sys
 import time
 import json
 import dropbox
 
 
 METADATA_FNAME = 'metadata.json'
+verbose = False
 
 parser = argparse.ArgumentParser(description='Downloads a path in Dropbox to the local file system')
 parser.add_argument('rootdir', nargs='?',
@@ -46,16 +46,18 @@ parser.add_argument('--verbose', '-v', action='store_true',
 
 
 def main():
+    global verbose
+
     args = parser.parse_args()
+    verbose = args.verbose
 
     if not args.list and not args.download and not args.upload and not args.remote_path:
-        print('Needs to specify one action (list/download/upload/show remote path)')
-        sys.exit(2)
+        error('Needs to specify one action (list/download/upload/show remote path)')
 
     token = setup_token(args)
 
     rootdir = os.path.expanduser(args.rootdir)
-    setup_rootdir(args, rootdir)
+    setup_rootdir(rootdir)
     dbx = dropbox.Dropbox(token)
 
     if args.list:
@@ -65,32 +67,28 @@ def main():
     elif args.upload:
         upload_file(args, dbx, rootdir)
     elif args.remote_path:
-        show_remote_path(args, dbx, rootdir)
+        show_remote_path(dbx, rootdir)
 
 
-def setup_rootdir(args, rootdir):
-    if args.verbose:
-        print('Local directory:', rootdir)
+def setup_rootdir(rootdir):
+    log('Local directory:', rootdir)
     if not os.path.exists(rootdir):
         print(rootdir, 'does not exist, creating it')
         os.mkdir(rootdir)
     elif not os.path.isdir(rootdir):
-        print(rootdir, 'is not a folder on your filesystem')
-        sys.exit(1)
+        error(rootdir, 'is not a folder on your filesystem')
 
 
 def setup_token(args):
     if not args.token_path:
-        print('--token is mandatory')
-        sys.exit(2)
+        error('--token is mandatory')
     if not os.path.exists(args.token_path):
-        print('Token path doesn\'t exist')
-        sys.exit(2)
+        error('Token path doesn\'t exist')
     with open(args.token_path) as file:
         return file.read()
 
 
-def show_remote_path(args, dbx, rootdir):
+def show_remote_path(dbx, rootdir):
     metadata = load_metadata(rootdir)
     print(metadata['path'])
 
@@ -98,13 +96,11 @@ def show_remote_path(args, dbx, rootdir):
 def upload_file(args, dbx, rootdir):
     dropbox_path = args.dropbox_path
     if dropbox_path is None:
-        if args.verbose:
-            print('Dropbox path not supplied, updating file')
+        log('Dropbox path not supplied, updating file')
         metadata = load_metadata(rootdir)
         file_id = metadata['id']
 
-        if args.verbose:
-            print('Fetching metadata')
+        log('Fetching metadata')
         remote_meta = dbx.files_get_metadata(file_id)
         mode = dropbox.files.WriteMode.update(metadata['rev'])
     else:
@@ -112,11 +108,10 @@ def upload_file(args, dbx, rootdir):
         mode = dropbox.files.WriteMode.overwrite
 
     local_path = os.path.join(rootdir, 'data')
-    if args.verbose:
-        if dropbox_path is None:
-            print('Uploading', local_path)
-        else:
-            print('Uploading', local_path, 'to', dropbox_path)
+    if dropbox_path is None:
+        log('Uploading', local_path)
+    else:
+        log('Uploading', local_path, 'to', dropbox_path)
 
     mtime = os.path.getmtime(local_path)
     mtime = datetime.datetime(*time.gmtime(mtime)[:6])
@@ -133,16 +128,12 @@ def upload_file(args, dbx, rootdir):
 
 def download_file(args, dbx, rootdir):
     dropbox_path = args.dropbox_path
-    if args.dropbox_path is None:
-        print('Dropbox path is needed')
-        os.sys.exit(1)
+    check_has_path(dropbox_path)
 
     if not is_id(dropbox_path):
-        print(f'"{dropbox_path}" is not a Dropbox file id')
-        os.sys.exit(1)
+        error(f'"{dropbox_path}" is not a Dropbox file id')
 
-    if args.verbose:
-        print('Fetching metadata')
+    log('Fetching metadata')
     remote_meta = dbx.files_get_metadata(dropbox_path)
     metadata = {
         'id': remote_meta.id,
@@ -152,8 +143,7 @@ def download_file(args, dbx, rootdir):
     }
 
     download_path = os.path.join(rootdir, 'data')
-    if args.verbose:
-        print('Downloading', dropbox_path, 'to', download_path)
+    log('Downloading', dropbox_path, 'to', download_path)
     dbx.files_download_to_file(download_path, dropbox_path)
 
     save_metadata(rootdir, metadata)
@@ -161,12 +151,9 @@ def download_file(args, dbx, rootdir):
 
 def list_folder(args, dbx):
     dropbox_path = args.dropbox_path
-    if dropbox_path is None:
-        print('Dropbox path is needed')
-        os.sys.exit(1)
+    check_has_path(dropbox_path)
 
-    if args.verbose:
-        print('Listing files in', dropbox_path)
+    log('Listing files in', dropbox_path)
     res = dbx.files_list_folder(dropbox_path, recursive=args.recursive)
     for entry in res.entries:
         print(f'{entry.id}\t{entry.path_display}')
@@ -187,6 +174,23 @@ def load_metadata(path):
 
 def is_id(s):
     return s.startswith('id:')
+
+
+def error(s):
+    print(s)
+    os.sys.exit(1)
+
+
+def log(*args):
+    global verbose
+
+    if verbose:
+        print(*args)
+
+
+def check_has_path(path):
+    if path is None:
+        error('Dropbox path is needed')
 
 
 if __name__ == '__main__':

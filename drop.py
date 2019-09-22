@@ -34,6 +34,8 @@ parser.add_argument('--upload', '-u', action='store_true',
                     'the path where resides the file and the metadata')
 parser.add_argument('--list', '-l', action='store_true',
                     help='List files in dropbox path')
+parser.add_argument('--remote_path', '-i', action='store_true',
+                    help='Show remote path for downloaded file')
 parser.add_argument('--recursive', '-r', action='store_true',
                     help='When listing files, do it recursively')
 parser.add_argument('--token_path',
@@ -46,8 +48,8 @@ parser.add_argument('--verbose', '-v', action='store_true',
 def main():
     args = parser.parse_args()
 
-    if not args.list and not args.download and not args.upload:
-        print('Needs to specify one action (list/download/upload)')
+    if not args.list and not args.download and not args.upload and not args.remote_path:
+        print('Needs to specify one action (list/download/upload/show remote path)')
         sys.exit(2)
 
     token = setup_token(args)
@@ -62,6 +64,8 @@ def main():
         download_file(args, dbx, rootdir)
     elif args.upload:
         upload_file(args, dbx, rootdir)
+    elif args.remote_path:
+        show_remote_path(args, dbx, rootdir)
 
 
 def setup_rootdir(args, rootdir):
@@ -84,6 +88,11 @@ def setup_token(args):
         sys.exit(2)
     with open(args.token_path) as file:
         return file.read()
+
+
+def show_remote_path(args, dbx, rootdir):
+    metadata = load_metadata(rootdir)
+    print(metadata['path'])
 
 
 def upload_file(args, dbx, rootdir):

@@ -29,6 +29,8 @@ parser.add_argument('--dropbox_path', '-p',
                     help='Path in Dropbox (can be an id)')
 parser.add_argument('--download', '-d', action='store_true',
                     help='Download file (specify file id)')
+parser.add_argument('--refresh', '-e', action='store_true',
+                    help='Refresh (if needed) local copy of file')
 parser.add_argument('--upload', '-u', action='store_true',
                     help='Upload file specifying '
                     'the path where resides the file and the metadata')
@@ -127,14 +129,28 @@ def upload_file(args, dbx, rootdir):
 
 
 def download_file(args, dbx, rootdir):
-    dropbox_path = args.dropbox_path
-    check_has_path(dropbox_path)
+    refresh = args.refresh
+    if refresh:
+        metadata = load_metadata(rootdir)
+        cur_rev = metadata['rev']
+        log('Fetching metadata')
+        dropbox_path = metadata['id']
+        remote_meta = dbx.files_get_metadata(dropbox_path)
+        if cur_rev == remote_meta.rev:
+            log('Same revision, not updating')
+            return
+        else:
+            log('Remote has newer version, updating')
+    else:
+        dropbox_path = args.dropbox_path
+        check_has_path(dropbox_path)
 
-    if not is_id(dropbox_path):
-        error(f'"{dropbox_path}" is not a Dropbox file id')
+        if not is_id(dropbox_path):
+            error(f'"{dropbox_path}" is not a Dropbox file id')
 
-    log('Fetching metadata')
-    remote_meta = dbx.files_get_metadata(dropbox_path)
+        log('Fetching metadata')
+        remote_meta = dbx.files_get_metadata(dropbox_path)
+
     metadata = {
         'id': remote_meta.id,
         'path': remote_meta.path_lower,

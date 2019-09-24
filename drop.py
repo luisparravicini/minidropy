@@ -22,39 +22,25 @@ import dropbox
 METADATA_FNAME = 'metadata.json'
 verbose = False
 
-parser = argparse.ArgumentParser(description='Downloads a path in Dropbox to the local file system')
-parser.add_argument('rootdir', nargs='?',
-                    help='Local directory')
-parser.add_argument('--dropbox_path', '-p',
-                    help='Path in Dropbox (can be an id)')
-parser.add_argument('--download', '-d', action='store_true',
-                    help='Download file (specify file id)')
-parser.add_argument('--refresh', '-e', action='store_true',
-                    help='Refresh (if needed) local copy of file')
-parser.add_argument('--upload', '-u', action='store_true',
-                    help='Upload file specifying '
-                    'the path where resides the file and the metadata')
-parser.add_argument('--list', '-l', action='store_true',
-                    help='List files in dropbox path')
-parser.add_argument('--remote_path', '-i', action='store_true',
-                    help='Show remote path for downloaded file')
-parser.add_argument('--recursive', '-r', action='store_true',
-                    help='When listing files, do it recursively')
-parser.add_argument('--token_path',
-                    help='Path where the access token is stored '
-                    '(see https://www.dropbox.com/developers/apps)')
-parser.add_argument('--verbose', '-v', action='store_true',
-                    help='Be verbose')
-
 
 def main():
     global verbose
 
+    commands = {
+        'download': download_file,
+        'upload': upload_file,
+        'list': list_folder,
+        'remote-path': show_remote_path,
+    }
+
+    parser = setup_parser(commands)
+
     args = parser.parse_args()
     verbose = args.verbose
 
-    if not args.list and not args.download and not args.upload and not args.remote_path:
-        error('Needs to specify one action (list/download/upload/show remote path)')
+    cmd = args.command
+    if cmd not in commands:
+        error('Unrecognized command')
 
     token = setup_token(args)
 
@@ -62,14 +48,35 @@ def main():
     setup_rootdir(rootdir)
     dbx = dropbox.Dropbox(token)
 
-    if args.list:
-        list_folder(args, dbx)
-    elif args.download:
-        download_file(args, dbx, rootdir)
-    elif args.upload:
-        upload_file(args, dbx, rootdir)
-    elif args.remote_path:
-        show_remote_path(dbx, rootdir)
+    commands[cmd](args, dbx, rootdir)
+
+
+def setup_parser(commands):
+    command_list = '/'.join(commands.keys())
+
+    parser = argparse.ArgumentParser(
+        description='Downloads a path in Dropbox to the '
+        'local file system')
+    parser.add_argument('rootdir', nargs='?',
+                        help='Local directory')
+    parser.add_argument('--dropbox_path', '-p',
+                        help='Path in Dropbox (can be an id)')
+    parser.add_argument('--command', '-c',
+                        help='Specify the command '
+                        f'({command_list}). '
+                        '"download" needs the file id. '
+                        '"upload" needs the local folder. ')
+    parser.add_argument('--refresh', '-e', action='store_true',
+                        help='Refresh (if needed) local copy of file')
+    parser.add_argument('--recursive', '-r', action='store_true',
+                        help='When listing files, do it recursively')
+    parser.add_argument('--token_path',
+                        help='Path where the access token is stored '
+                        '(see https://www.dropbox.com/developers/apps)')
+    parser.add_argument('--verbose', '-v', action='store_true',
+                        help='Be verbose')
+
+    return parser
 
 
 def setup_rootdir(rootdir):
@@ -83,14 +90,14 @@ def setup_rootdir(rootdir):
 
 def setup_token(args):
     if not args.token_path:
-        error('--token is mandatory')
+        error('--token_path is mandatory')
     if not os.path.exists(args.token_path):
         error('Token path doesn\'t exist')
     with open(args.token_path) as file:
         return file.read()
 
 
-def show_remote_path(dbx, rootdir):
+def show_remote_path(args, dbx, rootdir):
     metadata = load_metadata(rootdir)
     print(metadata['path'])
 
@@ -165,7 +172,7 @@ def download_file(args, dbx, rootdir):
     save_metadata(rootdir, metadata)
 
 
-def list_folder(args, dbx):
+def list_folder(args, dbx, rootdir):
     dropbox_path = args.dropbox_path
     check_has_path(dropbox_path)
 

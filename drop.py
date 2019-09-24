@@ -179,7 +179,13 @@ def list_folder(args, dbx, rootdir):
     log('Listing files in', dropbox_path)
     res = dbx.files_list_folder(dropbox_path, recursive=args.recursive)
     for entry in res.entries:
-        print(f'{entry.id}\t{entry.path_display}')
+        try:
+            mtime = entry.server_modified
+        except AttributeError:
+            continue
+
+        datum = [entry.id, entry.path_display, mtime.isoformat()]
+        print("\t".join(datum))
     return
 
 

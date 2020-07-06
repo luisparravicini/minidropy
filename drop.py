@@ -172,13 +172,8 @@ def download_file(args, dbx, rootdir):
     save_metadata(rootdir, metadata)
 
 
-def list_folder(args, dbx, rootdir):
-    dropbox_path = args.dropbox_path
-    check_has_path(dropbox_path)
-
-    log('Listing files in', dropbox_path)
-    res = dbx.files_list_folder(dropbox_path, recursive=args.recursive)
-    for entry in res.entries:
+def list_entries(entries):
+    for entry in entries:
         try:
             mtime = entry.server_modified
         except AttributeError:
@@ -186,7 +181,21 @@ def list_folder(args, dbx, rootdir):
 
         datum = [entry.id, entry.path_display, mtime.isoformat()]
         print("\t".join(datum))
-    return
+
+
+def list_folder(args, dbx, rootdir):
+    dropbox_path = args.dropbox_path
+    check_has_path(dropbox_path)
+
+    log('Listing files in', dropbox_path)
+    res = dbx.files_list_folder(dropbox_path, recursive=args.recursive)
+    has_more = True
+    while has_more:
+        list_entries(res.entries)
+
+        has_more = res.has_more
+        if has_more:
+            res = dbx.files_list_folder_continue(res.cursor)
 
 
 def save_metadata(path, metadata):

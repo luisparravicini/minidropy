@@ -35,3 +35,6 @@ optional arguments:
                         https://www.dropbox.com/developers/apps)
   --verbose, -v         Be verbose
 ```
+
+**Note**: As per the Dropbox api, the root is specified with an empty string.
+ 

@@ -37,4 +37,6 @@ optional arguments:
 ```
 
 **Note**: As per the Dropbox api, the root is specified with an empty string.
+
+ The api documentation is at <https://dropbox-sdk-python.readthedocs.io/en/latest/api/dropbox.html>.
  

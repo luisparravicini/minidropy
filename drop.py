@@ -94,7 +94,7 @@ def setup_token(args):
     if not os.path.exists(args.token_path):
         error('Token path doesn\'t exist')
     with open(args.token_path) as file:
-        return file.read()
+        return file.read().strip()
 
 
 def show_remote_path(args, dbx, rootdir):

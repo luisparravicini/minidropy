@@ -6,7 +6,7 @@
 - Upload a file, downloaded beforehand with the `download` option of this script and referenced by it's local path.
 - Listing of remote path. Reads `metadata.json` and lists the path of the downloaded file as it's stored in Dropbox.
 
-It needs a token stored in a file. Go to <https://www.dropbox.com/developers/apps> to get one.
+It needs a token stored in a file. Go to <https://www.dropbox.com/developers/apps> to create an app and then get an access token for it. The app needs the permission "*files.metadata.read*".
 
 All the parameters accepted are listed below:
 
